@@ -28,6 +28,7 @@ from ...transport_runtime import TransportRuntime
 from ...utils.paths import reset_run_base_dir, set_run_base_dir
 from ..bridge import send_plain
 from ..engine_overrides import supports_reasoning
+from .agent_files import _AgentFileRunner
 
 logger = get_logger(__name__)
 
@@ -159,6 +160,7 @@ async def _run_engine(
     show_resume_line: bool = True,
     progress_ref: MessageRef | None = None,
     run_options: EngineRunOptions | None = None,
+    file_sender: Callable[[str], Awaitable[None]] | None = None,
 ) -> None:
     reply = partial(
         send_plain,
@@ -199,6 +201,10 @@ async def _run_engine(
         except ConfigError as exc:
             await reply(text=f"error:\n{exc}")
             return
+        file_runner: _AgentFileRunner | None = None
+        if file_sender is not None and cwd is not None:
+            file_runner = _AgentFileRunner(runner)
+            runner = cast(Runner, file_runner)
         run_base_token = set_run_base_dir(cwd)
         try:
             run_fields = {
@@ -234,6 +240,13 @@ async def _run_engine(
                     on_thread_known=on_thread_known,
                     progress_ref=progress_ref,
                 )
+            if (
+                file_sender is not None
+                and file_runner is not None
+                and file_runner.paths
+            ):
+                for path in file_runner.paths:
+                    await file_sender(path)
         finally:
             reset_run_base_dir(run_base_token)
     except Exception as exc:

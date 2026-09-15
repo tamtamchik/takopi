@@ -10,6 +10,7 @@ Upload files into the active repo/worktree or fetch files back into Telegram.
     takopi config set transports.telegram.files.enabled true
     takopi config set transports.telegram.files.auto_put true
     takopi config set transports.telegram.files.auto_put_mode "upload"
+    takopi config set transports.telegram.files.auto_get_mode "prompt"
     takopi config set transports.telegram.files.uploads_dir "incoming"
     takopi config set transports.telegram.files.allowed_user_ids "[123456789]"
     takopi config set transports.telegram.files.deny_globs '[".git/**", ".env", ".envrc", "**/*.pem", "**/.ssh/**"]'
@@ -22,6 +23,7 @@ Upload files into the active repo/worktree or fetch files back into Telegram.
     enabled = true
     auto_put = true
     auto_put_mode = "upload" # upload | prompt
+    auto_get_mode = "prompt" # command | prompt
     uploads_dir = "incoming"
     allowed_user_ids = [123456789]
     deny_globs = [".git/**", ".env", ".envrc", "**/*.pem", "**/.ssh/**"]
@@ -31,6 +33,8 @@ Notes:
 
 - File transfer is **disabled by default**.
 - If `allowed_user_ids` is empty, private chats are allowed and group usage requires admin privileges.
+- `auto_get_mode = "command"` only allows `/file get`. Set it to `"prompt"`
+  to let agents attach requested files.
 
 ## Upload a file (`/file put`)
 
@@ -64,6 +68,15 @@ Send:
 ```
 
 Directories are zipped automatically.
+
+You can also ask the agent to send a file in a normal message:
+
+```
+Create reports/status.md and send it back as a file.
+```
+
+Agent-requested downloads use the same repo boundary, denylist, permission, and
+size checks as `/file get`.
 
 ## Related
 

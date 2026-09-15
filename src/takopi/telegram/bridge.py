@@ -401,6 +401,8 @@ async def send_with_resume(
             int | None,
             tuple[int, int | None] | None,
             MessageRef | None,
+            int | None,
+            bool,
         ],
         Awaitable[None],
     ],
@@ -410,6 +412,8 @@ async def send_with_resume(
     thread_id: int | None,
     session_key: tuple[int, int | None] | None,
     text: str,
+    sender_id: int | None = None,
+    is_private: bool = False,
 ) -> None:
     from .loop import send_with_resume as _send_with_resume
 
@@ -422,6 +426,8 @@ async def send_with_resume(
         thread_id,
         session_key,
         text,
+        sender_id,
+        is_private,
     )
 
 

@@ -70,9 +70,10 @@ When `allowed_user_ids` is set, updates without a sender id (for example, some c
 
 | Key | Type | Default | Notes |
 |-----|------|---------|-------|
-| `enabled` | bool | `false` | Enable `/file put` and `/file get`. |
+| `enabled` | bool | `false` | Enable file transfer. |
 | `auto_put` | bool | `true` | Auto-save uploads. |
 | `auto_put_mode` | `"upload"`\|`"prompt"` | `"upload"` | Whether uploads also start a run. |
+| `auto_get_mode` | `"command"`\|`"prompt"` | `"command"` | Allow downloads only through `/file get` or also through agent responses. |
 | `uploads_dir` | string | `"incoming"` | Relative path inside the repo/worktree. |
 | `allowed_user_ids` | int[] | `[]` | Allowed senders for file transfer; empty allows private chats (group usage requires admin). |
 | `deny_globs` | string[] | (defaults) | Glob denylist (e.g. `.git/**`, `**/*.pem`). |
