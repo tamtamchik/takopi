@@ -11,6 +11,11 @@ from takopi.telegram import files as tg_files
 from takopi.telegram.files import ZipTooLargeError, zip_directory
 
 
+def test_auto_get_mode_defaults_to_command() -> None:
+    assert TelegramFilesSettings().auto_get_mode == "command"
+    assert TelegramFilesSettings(auto_get_mode="prompt").auto_get_mode == "prompt"
+
+
 def test_zip_directory_skips_symlinks(tmp_path: Path) -> None:
     root = tmp_path / "root"
     root.mkdir()

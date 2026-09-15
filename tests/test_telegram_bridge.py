@@ -92,6 +92,8 @@ async def test_scheduler_keeps_busy_queued_job_addressable_by_progress() -> None
             text="queued prompt",
             resume_token=resume,
             progress_ref=progress_ref,
+            sender_id=42,
+            is_private=True,
         )
 
         await anyio.sleep(0)
@@ -99,6 +101,8 @@ async def test_scheduler_keeps_busy_queued_job_addressable_by_progress() -> None
         queued = await scheduler.get_queued(123, progress_ref.message_id)
         assert queued is not None
         assert queued.text == "queued prompt"
+        assert queued.sender_id == 42
+        assert queued.is_private is True
         assert ran.is_set() is False
 
         active_done.set()
@@ -1786,6 +1790,8 @@ async def test_send_with_resume_waits_for_token() -> None:
             int | None,
             tuple[int, int | None] | None,
             MessageRef | None,
+            int | None,
+            bool,
         ]
     ] = []
 
@@ -1798,6 +1804,8 @@ async def test_send_with_resume_waits_for_token() -> None:
         thread_id: int | None,
         session_key: tuple[int, int | None] | None,
         progress_ref: MessageRef | None,
+        sender_id: int | None,
+        is_private: bool,
     ) -> None:
         sent.append(
             (
@@ -1809,6 +1817,8 @@ async def test_send_with_resume_waits_for_token() -> None:
                 thread_id,
                 session_key,
                 progress_ref,
+                sender_id,
+                is_private,
             )
         )
 
@@ -1830,6 +1840,8 @@ async def test_send_with_resume_waits_for_token() -> None:
             None,
             None,
             "hello",
+            42,
+            True,
         )
 
     assert len(sent) == 1
@@ -1842,7 +1854,7 @@ async def test_send_with_resume_waits_for_token() -> None:
         None,
         None,
     )
-    assert sent[0][7] == transport.send_calls[0]["ref"]
+    assert sent[0][7:] == (transport.send_calls[0]["ref"], 42, True)
     assert transport.send_calls
     queued_text = transport.send_calls[0]["message"].text.lower()
     assert "queued" in queued_text
@@ -1863,6 +1875,8 @@ async def test_send_with_resume_reports_when_missing() -> None:
             int | None,
             tuple[int, int | None] | None,
             MessageRef | None,
+            int | None,
+            bool,
         ]
     ] = []
 
@@ -1875,6 +1889,8 @@ async def test_send_with_resume_reports_when_missing() -> None:
         thread_id: int | None,
         session_key: tuple[int, int | None] | None,
         progress_ref: MessageRef | None,
+        sender_id: int | None,
+        is_private: bool,
     ) -> None:
         sent.append(
             (
@@ -1886,6 +1902,8 @@ async def test_send_with_resume_reports_when_missing() -> None:
                 thread_id,
                 session_key,
                 progress_ref,
+                sender_id,
+                is_private,
             )
         )
 

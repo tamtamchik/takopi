@@ -35,7 +35,7 @@ from .commands.cancel import (
     handle_callback_steer,
     handle_cancel,
 )
-from .commands.file_transfer import FILE_PUT_USAGE
+from .commands.file_transfer import FILE_PUT_USAGE, _handle_file_get
 from .commands.handlers import (
     dispatch_command,
     handle_agent_command,
@@ -713,6 +713,8 @@ class ResumeResolver:
                 int | None,
                 tuple[int, int | None] | None,
                 MessageRef | None,
+                int | None,
+                bool,
             ],
             Awaitable[None],
         ],
@@ -738,6 +740,8 @@ class ResumeResolver:
         topic_key: tuple[int, int] | None,
         engine_for_session: EngineId,
         prompt_text: str,
+        sender_id: int | None,
+        is_private: bool,
     ) -> ResumeDecision:
         if resume_token is not None:
             return ResumeDecision(
@@ -758,6 +762,8 @@ class ResumeResolver:
                     thread_id,
                     chat_session_key,
                     prompt_text,
+                    sender_id,
+                    is_private,
                 )
                 return ResumeDecision(resume_token=None, handled_by_running_task=True)
         if self._topic_store is not None and topic_key is not None:
@@ -958,6 +964,8 @@ async def send_with_resume(
             int | None,
             tuple[int, int | None] | None,
             MessageRef | None,
+            int | None,
+            bool,
         ],
         Awaitable[None],
     ],
@@ -967,6 +975,8 @@ async def send_with_resume(
     thread_id: int | None,
     session_key: tuple[int, int | None] | None,
     text: str,
+    sender_id: int | None = None,
+    is_private: bool = False,
 ) -> None:
     reply = partial(
         send_plain,
@@ -1000,6 +1010,8 @@ async def send_with_resume(
         thread_id,
         session_key,
         progress_ref,
+        sender_id,
+        is_private,
     )
 
 
@@ -1209,6 +1221,8 @@ async def run_main_loop(
                 | None = None,
                 engine_override: EngineId | None = None,
                 progress_ref: MessageRef | None = None,
+                sender_id: int | None = None,
+                is_private: bool = False,
             ) -> None:
                 topic_key = (
                     (chat_id, thread_id)
@@ -1243,6 +1257,31 @@ async def run_main_loop(
                     chat_prefs=state.chat_prefs,
                     topic_store=state.topic_store,
                 )
+                file_sender: Callable[[str], Awaitable[None]] | None = None
+                if cfg.files.enabled and cfg.files.auto_get_mode == "prompt":
+                    file_msg = TelegramIncomingMessage(
+                        transport="telegram",
+                        chat_id=chat_id,
+                        message_id=user_msg_id,
+                        text="",
+                        reply_to_message_id=None,
+                        reply_to_text=None,
+                        sender_id=sender_id,
+                        thread_id=thread_id,
+                        chat_type="private" if is_private else "group",
+                    )
+
+                    async def send_file(path: str) -> None:
+                        await _handle_file_get(
+                            cfg,
+                            file_msg,
+                            path,
+                            context,
+                            None,
+                            parse_context_directives=False,
+                        )
+
+                    file_sender = send_file
                 await run_engine(
                     exec_cfg=cfg.exec_cfg,
                     runtime=cfg.runtime,
@@ -1261,6 +1300,7 @@ async def run_main_loop(
                     show_resume_line=show_resume_line,
                     progress_ref=progress_ref,
                     run_options=run_options,
+                    file_sender=file_sender,
                 )
 
             async def run_thread_job(job: ThreadJob) -> None:
@@ -1276,6 +1316,8 @@ async def run_main_loop(
                     scheduler.note_thread_known,
                     None,
                     job.progress_ref,
+                    job.sender_id,
+                    job.is_private,
                 )
 
             scheduler = ThreadScheduler(task_group=tg, run_job=run_thread_job)
@@ -1419,6 +1461,8 @@ async def run_main_loop(
                     topic_key=topic_key,
                     engine_for_session=engine_resolution.engine,
                     prompt_text=prompt_text,
+                    sender_id=msg.sender_id,
+                    is_private=msg.is_private,
                 )
                 if resume_decision.handled_by_running_task:
                     return
@@ -1435,6 +1479,8 @@ async def run_main_loop(
                         reply_ref,
                         scheduler.note_thread_known,
                         engine_override,
+                        sender_id=msg.sender_id,
+                        is_private=msg.is_private,
                     )
                     return
                 progress_ref = await _send_queued_progress(
@@ -1455,6 +1501,8 @@ async def run_main_loop(
                     msg.thread_id,
                     chat_session_key,
                     progress_ref,
+                    sender_id=msg.sender_id,
+                    is_private=msg.is_private,
                 )
 
             async def run_prompt_from_upload(

@@ -493,40 +493,47 @@ async def _handle_file_get(
     args_text: str,
     ambient_context: RunContext | None,
     topic_store: TopicStateStore | None,
+    *,
+    parse_context_directives: bool = True,
 ) -> None:
     reply = make_reply(cfg, msg)
     if not await _check_file_permissions(cfg, msg):
         return
-    try:
-        resolved = cfg.runtime.resolve_message(
-            text=args_text,
-            reply_text=msg.reply_to_text,
-            ambient_context=ambient_context,
-            chat_id=msg.chat_id,
+    if parse_context_directives:
+        try:
+            resolved = cfg.runtime.resolve_message(
+                text=args_text,
+                reply_text=msg.reply_to_text,
+                ambient_context=ambient_context,
+                chat_id=msg.chat_id,
+            )
+        except DirectiveError as exc:
+            await reply(text=f"error:\n{exc}")
+            return
+        topic_key = _topic_key(msg, cfg) if topic_store is not None else None
+        await _maybe_update_topic_context(
+            cfg=cfg,
+            topic_store=topic_store,
+            topic_key=topic_key,
+            context=resolved.context,
+            context_source=resolved.context_source,
         )
-    except DirectiveError as exc:
-        await reply(text=f"error:\n{exc}")
-        return
-    topic_key = _topic_key(msg, cfg) if topic_store is not None else None
-    await _maybe_update_topic_context(
-        cfg=cfg,
-        topic_store=topic_store,
-        topic_key=topic_key,
-        context=resolved.context,
-        context_source=resolved.context_source,
-    )
-    if resolved.context is None or resolved.context.project is None:
+        context = resolved.context
+        path_value = resolved.prompt
+    else:
+        context = ambient_context
+        path_value = args_text
+    if context is None or context.project is None:
         await reply(text="no project context available for file download.")
         return
     try:
-        run_root = cfg.runtime.resolve_run_cwd(resolved.context)
+        run_root = cfg.runtime.resolve_run_cwd(context)
     except ConfigError as exc:
         await reply(text=f"error:\n{exc}")
         return
     if run_root is None:
         await reply(text="no project context available for file download.")
         return
-    path_value = resolved.prompt
     if not path_value.strip():
         await reply(text=FILE_GET_USAGE)
         return

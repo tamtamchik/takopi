@@ -79,6 +79,7 @@ class TelegramFilesSettings(BaseModel):
     enabled: bool = False
     auto_put: bool = True
     auto_put_mode: Literal["upload", "prompt"] = "upload"
+    auto_get_mode: Literal["command", "prompt"] = "command"
     uploads_dir: NonEmptyStr = "incoming"
     allowed_user_ids: list[StrictInt] = Field(default_factory=list)
     deny_globs: list[NonEmptyStr] = Field(
